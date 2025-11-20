@@ -27,35 +27,22 @@ public class QueryAnalyzerImplTest {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
             database,
             """
-                SELECT
-                    to_char(period, ?) AS time,
-                    SUM(count_per_period) OVER (ORDER BY period) AS number
-                FROM (
-                    SELECT
-                        gs.period AS period,
-                        COUNT(tb.create_time) AS count_per_period
-                    FROM
-                        generate_series(?, ?, ?::interval) AS gs(period)
-                        LEFT JOIN s_test ss ON ss.project_id = ?
-                        LEFT JOIN s_test tb
-                            ON tb.subsystem_id = ss.id
-                            AND tb.thing_type = 'device'
-                            AND to_timestamp(tb.create_time / 1000.0) >= gs.period
-                            AND to_timestamp(tb.create_time / 1000.0) < gs.period + ?::interval
-                        LEFT JOIN s_test ddi ON ddi.id = tb.thing_id
-                    GROUP BY gs.period
-                ) sub
-                ORDER BY period;
-                """);
+                  SELECT
+                floor((tb.create_time-?)/?)*?+? as time,
+                count(tb.id) as number
+              FROM s_test tb
+               LEFT JOIN s_test ss ON ss.ID = tb.subsystem_id
+              GROUP BY floor((tb.create_time-?)/?)*?+?
+              """);
         SqlRequest request = analyzer.refactor(
             QueryParamEntity
                 .newQuery()
-                .getParam(), 1, 2, 3, 4, 5, 6);
+                .getParam(), 1, 2, 3, 4, 5, 6,7,8);
 
         System.out.println(request.getSql());
         System.out.println(request);
 
-        Assert.assertEquals(6, request.getParameters().length);
+        Assert.assertEquals(8, request.getParameters().length);
     }
 
     @Test

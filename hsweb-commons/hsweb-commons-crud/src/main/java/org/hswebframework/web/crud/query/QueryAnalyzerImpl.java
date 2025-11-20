@@ -800,12 +800,21 @@ class QueryAnalyzerImpl implements FromItemVisitor, SelectItemVisitor, SelectVis
             }
 
             if (plainSelect.getOrderByElements() != null) {
+                PrepareStatementVisitor visitor = new PrepareStatementVisitor();
+                for (OrderByElement orderByElement : plainSelect.getOrderByElements()) {
+                    orderByElement.getExpression().accept(visitor);
+                }
+                suffixParameters = visitor.parameterSize;
                 orderBy = getFormatedList(plainSelect.getOrderByElements(), "");
             }
 
             if (plainSelect.getGroupBy() != null) {
                 fastCount = false;
                 suffix.append(' ').append(plainSelect.getGroupBy());
+
+                PrepareStatementVisitor visitor = new PrepareStatementVisitor();
+                plainSelect.getGroupBy().getGroupByExpressionList().accept(visitor);
+                suffixParameters = visitor.parameterSize;
             }
             suffix.append(' ');
 
