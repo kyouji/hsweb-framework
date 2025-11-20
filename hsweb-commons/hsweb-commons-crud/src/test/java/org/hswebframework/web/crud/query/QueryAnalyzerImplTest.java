@@ -5,6 +5,7 @@ import org.hswebframework.ezorm.rdb.executor.wrapper.ResultWrappers;
 import org.hswebframework.ezorm.rdb.operator.DatabaseOperator;
 import org.hswebframework.web.api.crud.entity.QueryParamEntity;
 import org.hswebframework.web.crud.TestApplication;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,22 +23,58 @@ public class QueryAnalyzerImplTest {
 
 
     @Test
+    public void testParamCast() {
+        QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
+            database,
+            """
+                SELECT
+                    to_char(period, ?) AS time,
+                    SUM(count_per_period) OVER (ORDER BY period) AS number
+                FROM (
+                    SELECT
+                        gs.period AS period,
+                        COUNT(tb.create_time) AS count_per_period
+                    FROM
+                        generate_series(?, ?, ?::interval) AS gs(period)
+                        LEFT JOIN s_test ss ON ss.project_id = ?
+                        LEFT JOIN s_test tb
+                            ON tb.subsystem_id = ss.id
+                            AND tb.thing_type = 'device'
+                            AND to_timestamp(tb.create_time / 1000.0) >= gs.period
+                            AND to_timestamp(tb.create_time / 1000.0) < gs.period + ?::interval
+                        LEFT JOIN s_test ddi ON ddi.id = tb.thing_id
+                    GROUP BY gs.period
+                ) sub
+                ORDER BY period;
+                """);
+        SqlRequest request = analyzer.refactor(
+            QueryParamEntity
+                .newQuery()
+                .getParam(), 1, 2, 3, 4, 5, 6);
+
+        System.out.println(request.getSql());
+        System.out.println(request);
+
+        Assert.assertEquals(6, request.getParameters().length);
+    }
+
+    @Test
     public void testInject() {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(database,
                                                            "select count(distinct time) t2, \"name\" n from \"s_test\" t");
         SqlRequest request = analyzer.refactor(
-                QueryParamEntity
-                        .newQuery()
-                        .and("name", "123")
-                        .getParam());
+            QueryParamEntity
+                .newQuery()
+                .and("name", "123")
+                .getParam());
 
         System.out.println(request);
 
         SqlRequest sql = analyzer.refactorCount(
-                QueryParamEntity
-                        .newQuery()
-                        .and("name", "123")
-                        .getParam());
+            QueryParamEntity
+                .newQuery()
+                .and("name", "123")
+                .getParam());
         System.out.println(sql);
 
     }
@@ -47,7 +84,7 @@ public class QueryAnalyzerImplTest {
     public void testUnion() {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(database,
                                                            "select name n from s_test t " +
-                                                                   "union select name n from s_test t");
+                                                               "union select name n from s_test t");
 
         assertNotNull(analyzer.select().table.alias, "t");
         assertNotNull(analyzer.select().table.metadata.getName(), "s_test");
@@ -57,7 +94,7 @@ public class QueryAnalyzerImplTest {
     }
 
     @Test
-    public  void test() {
+    public void test() {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(database,
                                                            "select name n from s_test t");
 
@@ -79,10 +116,10 @@ public class QueryAnalyzerImplTest {
         assertNotNull(analyzer.select().getColumns().get("n"));
 
         SqlRequest request = analyzer
-                .refactor(QueryParamEntity
-                                  .newQuery()
-                                  .where("n", "123")
-                                  .getParam());
+            .refactor(QueryParamEntity
+                          .newQuery()
+                          .where("n", "123")
+                          .getParam());
 
         System.out.println(request);
 
@@ -97,37 +134,37 @@ public class QueryAnalyzerImplTest {
     @Test
     public void testJoin() {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
-                database,
-                "select *,t2.c from s_test t " +
-                        "left join (select z.id id, count(1) c from s_test z) t2 on t2.id = t.id");
+            database,
+            "select *,t2.c from s_test t " +
+                "left join (select z.id id, count(1) c from s_test z) t2 on t2.id = t.id");
 
         SqlRequest request = analyzer
-                .refactor(QueryParamEntity
-                                  .of()
-                                  .and("t2.c", "is", "xyz"));
+            .refactor(QueryParamEntity
+                          .of()
+                          .and("t2.c", "is", "xyz"));
 
         System.out.println(request);
 
     }
 
     @Test
-    public void testPrepare(){
+    public void testPrepare() {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
-                database,
-                "select * from (select substring(id,9) id from s_test where left(id,1) = ?) t");
+            database,
+            "select * from (select substring(id,9) id from s_test where left(id,1) = ?) t");
 
         SqlRequest request = analyzer
-                .refactor(QueryParamEntity.of(),33);
+            .refactor(QueryParamEntity.of(), 33);
 
         System.out.println(request);
     }
 
     @Test
-    public void testWith(){
+    public void testWith() {
 
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
-                database,
-        "WITH RECURSIVE Tree AS (\n" +
+            database,
+            "WITH RECURSIVE Tree AS (\n" +
                 "\n" +
                 "  SELECT id\n" +
                 "  FROM s_test\n" +
@@ -143,63 +180,63 @@ public class QueryAnalyzerImplTest {
                 "FROM Tree AS t1;");
 
         SqlRequest request = analyzer
-                .refactor(QueryParamEntity.of().and("id","eq","test"),1);
+            .refactor(QueryParamEntity.of().and("id", "eq", "test"), 1);
 
         System.out.println(request);
     }
 
     @Test
-    public void testTableFunction(){
+    public void testTableFunction() {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
             database,
             "select t.key from json_each_text('{\"name\":\"test\"}') t");
 
         SqlRequest request = analyzer
-            .refactor(QueryParamEntity.of().and("key","like","test%"),1);
+            .refactor(QueryParamEntity.of().and("key", "like", "test%"), 1);
         System.out.println(request);
     }
 
     @Test
-    public void testTableFunctionJoin(){
+    public void testTableFunctionJoin() {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
             database,
             "select t1.*,t2.key from s_test t1 left join json_each_text('{\"name\":\"test\"}') t2 on t2.key='test' and t2.value='test1'");
 
         SqlRequest request = analyzer
-            .refactor(QueryParamEntity.of().and("t2.key","like","test%"),1);
+            .refactor(QueryParamEntity.of().and("t2.key", "like", "test%"), 1);
         System.out.println(request);
     }
 
     @Test
-    public  void testValues(){
+    public void testValues() {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
             database,
             "select * from (values (1,2),(3,4)) t(\"a\",b)");
 
         SqlRequest request = analyzer
-            .refactor(QueryParamEntity.of().and("a","eq",1),1);
+            .refactor(QueryParamEntity.of().and("a", "eq", 1), 1);
         System.out.println(request);
     }
 
     @Test
-   public void testLateralSubSelect(){
+    public void testLateralSubSelect() {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
             database,
             "select * from s_test t, lateral(select * from s_test where id = t.id) t2");
 
         SqlRequest request = analyzer
-            .refactor(QueryParamEntity.of().and("t2.id","eq","test"),1);
+            .refactor(QueryParamEntity.of().and("t2.id", "eq", "test"), 1);
         System.out.println(request);
     }
 
     @Test
-    public void testParenthesisFrom(){
+    public void testParenthesisFrom() {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
             database,
             "select * from (s_test) t");
 
         SqlRequest request = analyzer
-            .refactor(QueryParamEntity.of().and("t.id","eq","test"),1);
+            .refactor(QueryParamEntity.of().and("t.id", "eq", "test"), 1);
         System.out.println(request);
     }
 
