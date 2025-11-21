@@ -109,6 +109,24 @@ public interface QueryAnalyzer {
                               table.newAlias(alias));
         }
 
+        public Optional<Column> findColumn(String name) {
+            Map<String, Column> columnMap = getColumns();
+            Column column = columnMap.get(name);
+
+            if (column != null) {
+                return Optional.of(column);
+            }
+
+            for (Column col : columnList) {
+                if (Objects.equals(col.name, name) || Objects.equals(col.name, QueryHelperUtils.toSnake(name))) {
+                    return Optional.of(col);
+                }
+            }
+
+            return Optional.empty();
+
+        }
+
         public Map<String, Column> getColumns() {
             return columns == null
                 ? columns = columnList
