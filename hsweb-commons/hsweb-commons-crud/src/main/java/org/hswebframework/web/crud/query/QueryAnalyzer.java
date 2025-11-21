@@ -122,7 +122,8 @@ public interface QueryAnalyzer {
             for (Column col : columnList) {
                 if (Objects.equals(col.name, name)
                     || Objects.equals(col.name, snake)
-                    || Objects.equals(QueryHelperUtils.toSnake(col.alias), snake)) {
+                    || Objects.equals(QueryHelperUtils.toSnake(col.alias), snake)
+                    || Objects.equals(col.getFullName(), snake)) {
                     return Optional.of(col);
                 }
             }
