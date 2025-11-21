@@ -95,7 +95,7 @@ class QueryAnalyzerImpl implements FromItemVisitor, SelectItemVisitor, SelectVis
             return select.getColumnList().get(index) instanceof ExpressionColumn;
         }
 
-        return select.getColumns().get(name) instanceof ExpressionColumn;
+        return select.findColumn(name).orElse(null) instanceof ExpressionColumn;
     }
 
     private Map<String, Column> getColumnMappings() {
@@ -168,12 +168,8 @@ class QueryAnalyzerImpl implements FromItemVisitor, SelectItemVisitor, SelectVis
     }
 
     private Column getColumnOrSelectColumn(String name) {
-        Column column = select.getColumns().get(name);
+        Column column = select.findColumn(name).orElse(null);
 
-        if (column != null) {
-            return column;
-        }
-        column = select.getColumns().get(QueryHelperUtils.toSnake(name));
         if (column != null) {
             return column;
         }

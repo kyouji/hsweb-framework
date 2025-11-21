@@ -95,7 +95,7 @@ public interface QueryAnalyzer {
     @RequiredArgsConstructor
     @Getter
     class Select {
-        private transient Map<String, Column> columns;
+        private transient volatile Map<String, Column> columns;
 
         final List<Column> columnList;
 
@@ -118,26 +118,31 @@ public interface QueryAnalyzer {
             }
 
             String snake = QueryHelperUtils.toSnake(name);
-
-            for (Column col : columnList) {
-                if (Objects.equals(col.name, name)
-                    || Objects.equals(col.name, snake)
-                    || Objects.equals(QueryHelperUtils.toSnake(col.alias), snake)
-                    || Objects.equals(col.getFullName(), snake)) {
-                    return Optional.of(col);
-                }
+            column = columnMap.get(snake);
+            if (column != null) {
+                return Optional.of(column);
             }
 
             return Optional.empty();
 
         }
 
+        @Deprecated
         public Map<String, Column> getColumns() {
-            return columns == null
-                ? columns = columnList
-                .stream()
-                .collect(Collectors.toMap(Column::getAlias, Function.identity(), (a, b) -> b))
-                : columns;
+            if (columns == null) {
+                synchronized (this) {
+                    if (columns == null) {
+                        columns = new HashMap<>();
+                        for (Column column : columnList) {
+                            columns.put(column.name, column);
+                            columns.put(column.alias, column);
+                            columns.put(column.getFullName(), column);
+                            columns.put(QueryHelperUtils.toSnake(column.alias), column);
+                        }
+                    }
+                }
+            }
+            return columns;
         }
     }
 
