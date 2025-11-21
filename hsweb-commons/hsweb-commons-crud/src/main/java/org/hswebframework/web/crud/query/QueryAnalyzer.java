@@ -117,8 +117,12 @@ public interface QueryAnalyzer {
                 return Optional.of(column);
             }
 
+            String snake = QueryHelperUtils.toSnake(name);
+
             for (Column col : columnList) {
-                if (Objects.equals(col.name, name) || Objects.equals(col.name, QueryHelperUtils.toSnake(name))) {
+                if (Objects.equals(col.name, name)
+                    || Objects.equals(col.name, snake)
+                    || Objects.equals(QueryHelperUtils.toSnake(col.alias), snake)) {
                     return Optional.of(col);
                 }
             }
@@ -161,6 +165,10 @@ public interface QueryAnalyzer {
         String owner;
         //元数据信息
         RDBColumnMetadata metadata;
+
+        public String getFullName() {
+            return owner != null ? owner + "." + name : name;
+        }
 
         public Column moveOwner(String owner) {
             return new Column(name, alias, owner, metadata);
