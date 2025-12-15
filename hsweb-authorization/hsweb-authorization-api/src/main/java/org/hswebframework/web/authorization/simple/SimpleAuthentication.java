@@ -21,6 +21,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hswebframework.web.authorization.*;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.*;
 import java.util.function.BiPredicate;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 @Setter
 public class SimpleAuthentication implements Authentication {
 
+    @Serial
     private static final long serialVersionUID = -2898863220255336528L;
 
     private User user;

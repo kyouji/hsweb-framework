@@ -31,7 +31,7 @@ public class Proxy<I> extends URLClassLoader {
     @Getter
     private final String classFullName;
 
-    private final Set<ClassLoader> loaders = new HashSet<>();
+    private final Set<ClassLoader> loaders = new LinkedHashSet<>();
     private Class<I> targetClass;
 
     @SneakyThrows
