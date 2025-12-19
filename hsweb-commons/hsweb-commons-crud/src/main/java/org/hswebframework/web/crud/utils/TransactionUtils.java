@@ -22,6 +22,9 @@ public class TransactionUtils {
 
     static TransactionManager transactionManager;
 
+    static final DefaultTransactionDefinition PROPAGATION_REQUIRES_NEW_DEF
+        = new DefaultTransactionDefinition(PROPAGATION_REQUIRES_NEW);
+
     public static void setup(TransactionManager transactionManager) {
         TransactionUtils.transactionManager = transactionManager;
     }
@@ -54,7 +57,8 @@ public class TransactionUtils {
                 @Override
                 @NonNull
                 public Mono<Void> afterCommit() {
-                    return tryRunInTransaction(task, new DefaultTransactionDefinition(PROPAGATION_REQUIRES_NEW));
+                    // 开启新事务
+                    return tryRunInTransaction(task, PROPAGATION_REQUIRES_NEW_DEF);
                 }
             },
             TransactionSynchronization::afterCommit
