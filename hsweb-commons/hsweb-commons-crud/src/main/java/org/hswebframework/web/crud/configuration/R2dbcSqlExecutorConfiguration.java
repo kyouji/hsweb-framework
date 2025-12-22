@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.transaction.ReactiveTransactionManager;
 
 @AutoConfiguration
-@AutoConfigureAfter(name = "org.springframeworrk.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration")
+@AutoConfigureAfter(name = "org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration")
 @ConditionalOnBean(ConnectionFactory.class)
 public class R2dbcSqlExecutorConfiguration {
     @Bean
