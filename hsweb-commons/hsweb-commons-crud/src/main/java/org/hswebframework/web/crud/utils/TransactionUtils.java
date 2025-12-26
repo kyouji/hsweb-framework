@@ -51,6 +51,19 @@ public class TransactionUtils {
         return task;
     }
 
+    public static Mono<Void> afterCommitWithOutTransaction(Mono<Void> task) {
+        return TransactionUtils.registerSynchronization(
+            new TransactionSynchronization() {
+                @Override
+                @NonNull
+                public Mono<Void> afterCommit() {
+                    return task;
+                }
+            },
+            TransactionSynchronization::afterCommit
+        );
+    }
+
     public static Mono<Void> afterCommit(Mono<Void> task) {
         return TransactionUtils.registerSynchronization(
             new TransactionSynchronization() {
