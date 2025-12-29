@@ -54,13 +54,17 @@ public class TransactionUtils {
     public static Mono<Void> afterCommitWithOutTransaction(Mono<Void> task) {
         return TransactionUtils.registerSynchronization(
             new TransactionSynchronization() {
+
                 @Override
                 @NonNull
-                public Mono<Void> afterCommit() {
-                    return task;
+                public Mono<Void> afterCompletion(int status) {
+                    if (status == TransactionSynchronization.STATUS_COMMITTED) {
+                        return task;
+                    }
+                    return TransactionSynchronization.super.afterCompletion(status);
                 }
             },
-            TransactionSynchronization::afterCommit
+            sync -> sync.afterCompletion(TransactionSynchronization.STATUS_COMMITTED)
         );
     }
 
@@ -69,12 +73,16 @@ public class TransactionUtils {
             new TransactionSynchronization() {
                 @Override
                 @NonNull
-                public Mono<Void> afterCommit() {
-                    // 开启新事务
-                    return tryRunInTransaction(task, PROPAGATION_REQUIRES_NEW_DEF);
+                public Mono<Void> afterCompletion(int status) {
+                    if (status == TransactionSynchronization.STATUS_COMMITTED) {
+                        // 开启新事务
+                        return tryRunInTransaction(task, PROPAGATION_REQUIRES_NEW_DEF);
+                    }
+                    return TransactionSynchronization.super.afterCompletion(status);
                 }
             },
-            TransactionSynchronization::afterCommit
+
+            sync -> sync.afterCompletion(TransactionSynchronization.STATUS_COMMITTED)
         );
     }
 
