@@ -204,10 +204,8 @@ public interface Authentication extends Serializable {
 
     default boolean hasPermission(String permissionId, Collection<String> actions) {
         for (Permission permission : getPermissions()) {
-            if (Objects.equals(permission.getId(), "*")) {
-                return true;
-            }
-            if (Objects.equals(permissionId, permission.getId())) {
+            if (Objects.equals(permission.getId(), "*") ||
+                Objects.equals(permissionId, permission.getId())) {
                 return actions.isEmpty()
                     || permission.getActions().containsAll(actions)
                     || permission.getActions().contains("*");

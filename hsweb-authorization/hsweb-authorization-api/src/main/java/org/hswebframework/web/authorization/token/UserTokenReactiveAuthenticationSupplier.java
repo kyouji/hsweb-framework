@@ -37,7 +37,7 @@ public class UserTokenReactiveAuthenticationSupplier implements ReactiveAuthenti
     @Override
     public Mono<Authentication> get(String userId) {
         if (userId == null) {
-            return null;
+            return Mono.empty();
         }
         return get(this.defaultAuthenticationManager, userId);
     }

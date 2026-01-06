@@ -22,9 +22,10 @@ public class ResourcesDefinition {
 
     private Phased phased = Phased.before;
 
-    public void clear(){
+    public void clear() {
         resources.clear();
     }
+
     public void addResource(ResourceDefinition resource, boolean merge) {
         ResourceDefinition definition = getResource(resource.getId()).orElse(null);
         if (definition != null) {
@@ -44,17 +45,17 @@ public class ResourcesDefinition {
 
     public Optional<ResourceDefinition> getResource(String id) {
         return resources
-                .stream()
-                .filter(resource -> resource.getId().equals(id))
-                .findAny();
+            .stream()
+            .filter(resource -> resource.getId().equals(id))
+            .findAny();
     }
 
     @JsonIgnore
     public List<ResourceDefinition> getDataAccessResources() {
         return resources
-                .stream()
-                .filter(ResourceDefinition::hasDataAccessAction)
-                .collect(Collectors.toList());
+            .stream()
+            .filter(ResourceDefinition::hasDataAccessAction)
+            .collect(Collectors.toList());
     }
 
     public boolean hasPermission(Permission permission) {
@@ -62,8 +63,8 @@ public class ResourcesDefinition {
             return true;
         }
         return getResource(permission.getId())
-                .filter(resource -> resource.hasAction(permission.getActions()))
-                .isPresent();
+            .filter(resource -> resource.hasAction(permission.getActions()))
+            .isPresent();
     }
 
     public boolean isEmpty() {
@@ -72,18 +73,27 @@ public class ResourcesDefinition {
 
     public boolean hasPermission(Authentication authentication) {
 
-        if (CollectionUtils.isEmpty(resources)) {
+        int size = resources.size();
+        if (size == 0) {
             return true;
+        }
+        if (size == 1) {
+            for (ResourceDefinition resource : resources) {
+                if (authentication.hasPermission(resource.getId(), resource.getActionIds())) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         if (logical == Logical.AND) {
             return resources
-                    .stream()
-                    .allMatch(resource -> authentication.hasPermission(resource.getId(), resource.getActionIds()));
+                .stream()
+                .allMatch(resource -> authentication.hasPermission(resource.getId(), resource.getActionIds()));
         }
 
         return resources
-                .stream()
-                .anyMatch(resource -> authentication.hasPermission(resource.getId(), resource.getActionIds()));
+            .stream()
+            .anyMatch(resource -> authentication.hasPermission(resource.getId(), resource.getActionIds()));
     }
 }

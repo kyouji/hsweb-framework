@@ -65,8 +65,8 @@ public final class AuthenticationHolder {
         if (size == 1) {
             return function.apply(suppliers.get(0));
         }
-        ReactiveAuthenticationHolder.AuthenticationMerging merging
-            = new ReactiveAuthenticationHolder.AuthenticationMerging();
+        AuthenticationUtils.AuthenticationMerging merging
+            = new AuthenticationUtils.AuthenticationMerging();
         for (AuthenticationSupplier supplier : suppliers) {
             function.apply(supplier).ifPresent(merging::merge);
         }

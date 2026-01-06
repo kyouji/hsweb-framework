@@ -46,10 +46,9 @@ public final class ReactiveAuthenticationHolder {
     private static final List<ReactiveAuthenticationSupplier> suppliers = new CopyOnWriteArrayList<>();
 
     private static Mono<Authentication> get(Function<ReactiveAuthenticationSupplier, Mono<Authentication>> function) {
-        return Flux
-            .merge(Lists.transform(suppliers, function::apply))
-            .collect(AuthenticationMerging::new, AuthenticationMerging::merge)
-            .mapNotNull(AuthenticationMerging::get);
+        return AuthenticationUtils
+            .merge(Flux.merge(Lists.transform(suppliers, function::apply)))
+            ;
     }
 
     /**
@@ -85,27 +84,5 @@ public final class ReactiveAuthenticationHolder {
     }
 
 
-    static class AuthenticationMerging {
-
-        private Authentication auth;
-        private int count;
-
-        public synchronized void merge(Authentication auth) {
-            if (this.auth == null || this.auth == auth) {
-                this.auth = auth;
-            } else {
-                if (count++ == 0) {
-                    SimpleAuthentication newAuth = new SimpleAuthentication();
-                    newAuth.merge(this.auth);
-                    this.auth = newAuth;
-                }
-                this.auth.merge(auth);
-            }
-        }
-
-        Authentication get() {
-            return auth;
-        }
-    }
 
 }
