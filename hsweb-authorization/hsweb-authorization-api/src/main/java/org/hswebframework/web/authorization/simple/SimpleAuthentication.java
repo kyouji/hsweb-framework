@@ -151,7 +151,7 @@ public class SimpleAuthentication implements Authentication {
     private transient volatile Map<String, Permission> permissionMapping;
     private transient volatile long accessCount;
 
-    private boolean fastPath() {
+    protected boolean fastPath() {
         // 总共访问超过8次,则进行初始化缓存.
         if (ACCESS_COUNT_UPDATER.incrementAndGet(this) == 8) {
             if (permissionMapping == null) {
