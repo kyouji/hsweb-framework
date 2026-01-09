@@ -177,7 +177,8 @@ public class SimpleAuthentication implements Authentication {
 
     @Override
     public boolean hasPermission(String permissionId, Collection<String> actions) {
-        if (fastPath()) {
+        Map<String, Permission> permissionMapping = this.permissionMapping;
+        if (fastPath() && permissionMapping != null) {
             Permission permission = permissionMapping.get(permissionId);
             if (permission == null) {
                 permission = permissionMapping.get("*");
@@ -194,7 +195,8 @@ public class SimpleAuthentication implements Authentication {
 
     @Override
     public Optional<Dimension> getDimension(String type, String id) {
-        if (fastPath()) {
+        Map<String, Map<String, Dimension>> dimensionMapping = this.dimensionMapping;
+        if (fastPath() && dimensionMapping != null) {
             Map<String, Dimension> mapping = dimensionMapping.get(type);
             if (mapping == null) {
                 return Optional.empty();
@@ -216,7 +218,8 @@ public class SimpleAuthentication implements Authentication {
 
     @Override
     public List<Dimension> getDimensions(String type) {
-        if (fastPath()) {
+        Map<String, Map<String, Dimension>> dimensionMapping = this.dimensionMapping;
+        if (fastPath() && dimensionMapping != null) {
             Map<String, Dimension> mapping = dimensionMapping.get(type);
             if (mapping == null) {
                 return List.of();
@@ -228,7 +231,8 @@ public class SimpleAuthentication implements Authentication {
 
     @Override
     public Optional<Permission> getPermission(String id) {
-        if (fastPath()) {
+        Map<String, Permission> permissionMapping = this.permissionMapping;
+        if (fastPath() && permissionMapping != null) {
             return Optional.ofNullable(permissionMapping.get(id));
         }
         return Authentication.super.getPermission(id);
