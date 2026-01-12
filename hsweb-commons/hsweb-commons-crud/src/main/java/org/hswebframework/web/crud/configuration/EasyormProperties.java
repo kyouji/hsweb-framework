@@ -110,6 +110,12 @@ public class EasyormProperties {
                 return new H2SchemaMetadata(name);
             }
         },
+        kingbase_mysql(Dialect.MYSQL, "$") {
+            @Override
+            public RDBSchemaMetadata createSchema(String name) {
+                return new MysqlSchemaMetadata(name);
+            }
+        },
         opengauss(OpengaussDialect.global, "$") {
             @Override
             public RDBSchemaMetadata createSchema(String name) {
