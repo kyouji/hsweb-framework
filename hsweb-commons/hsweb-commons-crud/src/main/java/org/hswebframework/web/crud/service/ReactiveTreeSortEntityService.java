@@ -282,7 +282,7 @@ public interface ReactiveTreeSortEntityService<E extends TreeSortSupportEntity<K
     }
 
     default boolean isRootNode(E entity) {
-        return ObjectUtils.isEmpty(entity.getParentId()) || "-1".equals(String.valueOf(entity.getParentId()));
+        return ObjectUtils.isEmpty(entity.getParentId()) || "-1".equals(String.valueOf(entity.getId()));
     }
 
     @Override
