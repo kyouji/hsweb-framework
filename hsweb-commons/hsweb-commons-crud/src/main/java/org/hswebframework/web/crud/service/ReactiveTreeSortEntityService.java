@@ -270,14 +270,11 @@ public interface ReactiveTreeSortEntityService<E extends TreeSortSupportEntity<K
 
     default Predicate<E> createRootNodePredicate(TreeSupportEntity.TreeHelper<E, K> helper) {
         return node -> {
-            if (isRootNode(node)) {
-                return true;
-            }
             //有父节点,但是父节点不存在
             if (!ObjectUtils.isEmpty(node.getParentId())) {
                 return helper.getNode(node.getParentId()) == null;
             }
-            return false;
+            return isRootNode(node);
         };
     }
 
