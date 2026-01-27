@@ -169,7 +169,10 @@ public class SimpleAuthentication implements Authentication {
                     .stream()
                     .collect(Collectors
                                  .groupingBy(d -> d.getType().getId(),
-                                             Collectors.toMap(Dimension::getId, Function.identity())));
+                                             Collectors.toMap(
+                                                 Dimension::getId,
+                                                 Function.identity(),
+                                                 (a, b) -> a)));
             }
         }
         return permissionMapping != null;
