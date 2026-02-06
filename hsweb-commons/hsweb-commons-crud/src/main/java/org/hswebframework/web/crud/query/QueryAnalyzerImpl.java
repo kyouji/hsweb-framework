@@ -287,9 +287,33 @@ class QueryAnalyzerImpl implements FromItemVisitor, SelectItemVisitor, SelectVis
         QueryAnalyzerImpl sub = new QueryAnalyzerImpl(database, body, this);
         Map<String, Column> columnMap = new LinkedHashMap<>();
         for (Column column : sub.select.getColumnList()) {
+            // 判断子查询的列是否有显式的 SQL 别名（如 select name as n）
+            // vs 隐式的 ORM 别名（如 select * 展开时，别名来自元数据）
+            boolean hasExplicitSqlAlias = column.metadata != null
+                && !Objects.equals(column.alias, column.metadata.getAlias());
+
+            String exposedName;
+            RDBColumnMetadata colMetadata = column.metadata;
+
+            if (hasExplicitSqlAlias) {
+                // 显式 SQL 别名：子查询暴露的列名是 SQL 别名（如 "n"）
+                // 克隆 metadata，设置 name 为别名，清除 realName
+                // 使得 getRealName() 返回别名，realNameDetected() 返回 false（需要大小写规范化）
+                exposedName = column.alias;
+                colMetadata = column.metadata.clone();
+                colMetadata.setName(column.alias);
+                colMetadata.setAlias(column.alias);
+                colMetadata.setRealName(null);
+            } else if (column.metadata == null) {
+                // 表达式列或无元数据：使用别名作为暴露名
+                exposedName = column.alias;
+            } else {
+                // 隐式 ORM 别名（如 select *）：子查询暴露的列名是原始列名
+                exposedName = column.name;
+            }
 
             columnMap.put(column.getAlias(),
-                          new Column(column.name, column.getAlias(), column.owner, column.metadata));
+                          new Column(exposedName, column.getAlias(), column.owner, colMetadata));
         }
 
         select = new QueryAnalyzer.Select(
@@ -391,7 +415,7 @@ class QueryAnalyzerImpl implements FromItemVisitor, SelectItemVisitor, SelectVis
             for (QueryAnalyzer.Column column : selectTable.columns.values()) {
                 String alias = table == select.table ? column.getAlias() : table.alias + "." + column.getAlias();
                 container.add(new QueryAnalyzer.Column(
-                    column.name,
+                    column.getName(),
                     alias,
                     table.alias,
                     column.metadata
@@ -669,6 +693,7 @@ class QueryAnalyzerImpl implements FromItemVisitor, SelectItemVisitor, SelectVis
             }
 
             String colName = col.metadata != null ? col.metadata.getRealName() : col.name;
+
             String fullName = col.metadata != null
                 ? col.getMetadata().getFullName(table.alias)
                 : table.alias + "." + dialect.quote(colName, false);
@@ -713,8 +738,6 @@ class QueryAnalyzerImpl implements FromItemVisitor, SelectItemVisitor, SelectVis
                 columns.append(select.columnList.get(0).owner).append('.').append('*');
                 return;
             }
-            // 判断主表是否是 SelectTable（子查询）
-            boolean isSelectTable = select.table instanceof QueryAnalyzer.SelectTable;
 
             for (Column column : select.columnList) {
                 if ("*".equals(column.name)) {
@@ -730,16 +753,9 @@ class QueryAnalyzerImpl implements FromItemVisitor, SelectItemVisitor, SelectVis
                     continue;
                 }
 
-                // 对于 SelectTable（子查询），应该使用列的别名来引用列，而不是原始列名
-                // 因为子查询的列是通过别名暴露给外层查询的
-                String columnName = isSelectTable && column.owner != null
-                    && column.owner.equals(select.table.alias)
-                    ? column.alias  // 使用别名
-                    : column.name;  // 使用原始列名
-
                 columns.append(column.owner)
                        .append('.')
-                       .append(dialect.quote(columnName, column.metadata != null && !column.metadata.realNameDetected()))
+                       .append(dialect.quote(column.name, column.metadata != null && !column.metadata.realNameDetected()))
                        .append(" as ")
                        .append(dialect.quote(column.alias, false));
             }

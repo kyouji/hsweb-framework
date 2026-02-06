@@ -96,16 +96,18 @@ public class QueryAnalyzerImplTest {
                 """);
 
 
-        SqlRequest request = analyzer.refactor(QueryParamEntity.of());
+        SqlRequest request = analyzer
+            .refactor(QueryParamEntity.of()
+                                      .and("n", "is", "123"));
 
         System.out.println(request);
         database.sql()
-            .reactive()
-            .select(request.getSql(),request.getParameters())
-            .then()
-            .as(StepVerifier::create)
-            .expectComplete()
-            .verify();
+                .reactive()
+                .select(request.getSql(), request.getParameters())
+                .then()
+                .as(StepVerifier::create)
+                .expectComplete()
+                .verify();
 
     }
 
