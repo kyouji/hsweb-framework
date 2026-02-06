@@ -713,6 +713,9 @@ class QueryAnalyzerImpl implements FromItemVisitor, SelectItemVisitor, SelectVis
                 columns.append(select.columnList.get(0).owner).append('.').append('*');
                 return;
             }
+            // 判断主表是否是 SelectTable（子查询）
+            boolean isSelectTable = select.table instanceof QueryAnalyzer.SelectTable;
+
             for (Column column : select.columnList) {
                 if ("*".equals(column.name)) {
                     continue;
@@ -727,9 +730,16 @@ class QueryAnalyzerImpl implements FromItemVisitor, SelectItemVisitor, SelectVis
                     continue;
                 }
 
+                // 对于 SelectTable（子查询），应该使用列的别名来引用列，而不是原始列名
+                // 因为子查询的列是通过别名暴露给外层查询的
+                String columnName = isSelectTable && column.owner != null
+                    && column.owner.equals(select.table.alias)
+                    ? column.alias  // 使用别名
+                    : column.name;  // 使用原始列名
+
                 columns.append(column.owner)
                        .append('.')
-                       .append(dialect.quote(column.name, column.metadata != null && !column.metadata.realNameDetected()))
+                       .append(dialect.quote(columnName, column.metadata != null && !column.metadata.realNameDetected()))
                        .append(" as ")
                        .append(dialect.quote(column.alias, false));
             }

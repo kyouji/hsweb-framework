@@ -27,17 +27,17 @@ public class QueryAnalyzerImplTest {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
             database,
             """
-                  SELECT
-                floor((tb.create_time-?)/?)*?+? as time,
-                count(tb.id) as number
-              FROM s_test tb
-               LEFT JOIN s_test ss ON ss.ID = tb.subsystem_id
-              GROUP BY floor((tb.create_time-?)/?)*?+?
-              """);
+                    SELECT
+                  floor((tb.create_time-?)/?)*?+? as time,
+                  count(tb.id) as number
+                FROM s_test tb
+                 LEFT JOIN s_test ss ON ss.ID = tb.subsystem_id
+                GROUP BY floor((tb.create_time-?)/?)*?+?
+                """);
         SqlRequest request = analyzer.refactor(
             QueryParamEntity
                 .newQuery()
-                .getParam(), 1, 2, 3, 4, 5, 6,7,8);
+                .getParam(), 1, 2, 3, 4, 5, 6, 7, 8);
 
         System.out.println(request.getSql());
         System.out.println(request);
@@ -72,11 +72,40 @@ public class QueryAnalyzerImplTest {
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(database,
                                                            "select name n from s_test t " +
                                                                "union select name n from s_test t");
+        SqlRequest request = analyzer.refactor(QueryParamEntity.of());
+        System.out.println(request);
 
         assertNotNull(analyzer.select().table.alias, "t");
         assertNotNull(analyzer.select().table.metadata.getName(), "s_test");
 
         assertNotNull(analyzer.select().getColumns().get("n"));
+
+    }
+
+
+    @Test
+    public void testUnionColumns() {
+        QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
+            database,
+            """
+                select * from (
+                 select name as n from s_test a
+                 union all
+                 select id as n from s_test b
+                ) t
+                """);
+
+
+        SqlRequest request = analyzer.refactor(QueryParamEntity.of());
+
+        System.out.println(request);
+        database.sql()
+            .reactive()
+            .select(request.getSql(),request.getParameters())
+            .then()
+            .as(StepVerifier::create)
+            .expectComplete()
+            .verify();
 
     }
 
