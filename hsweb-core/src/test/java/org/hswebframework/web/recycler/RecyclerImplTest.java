@@ -4,6 +4,8 @@ import org.junit.Before;
 import org.junit.Test;
 import reactor.core.scheduler.Schedulers;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
@@ -236,37 +238,36 @@ public class RecyclerImplTest {
     }
 
     @Test
-    public void testStaticFactoryKeepsThreadLocalReuseForPlainObjects() {
+    public void testStaticFactoryKeepsThreadLocalReuseForPlainObjects() throws InterruptedException {
         Recycler<StringBuilder> recycler = Recycler.create(factory, rest, 2);
-
-        Integer created = Schedulers
-            .parallel()
-            .schedule(() -> {
-            }) == null ? null : null;
         AtomicReference<Integer> createdCount = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(1);
+
         Schedulers
             .parallel()
             .schedule(() -> {
-                recycler.doWith(sb -> {
-                    sb.append("first");
-                    return sb.toString();
-                });
-                recycler.doWith(sb -> {
-                    sb.append("second");
-                    return sb.toString();
-                });
-                createdCount.set(createCount.get());
+                try {
+                    recycler.doWith(sb -> {
+                        sb.append("first");
+                        return sb.toString();
+                    });
+                    recycler.doWith(sb -> {
+                        sb.append("second");
+                        return sb.toString();
+                    });
+                    createdCount.set(createCount.get());
+                } finally {
+                    latch.countDown();
+                }
             });
 
-        while (createdCount.get() == null) {
-            Thread.yield();
-        }
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         assertEquals(Integer.valueOf(1), createdCount.get());
     }
 
     @Test
-    public void testDestroyFactoryDoesNotUseThreadLocalForManagedResources() {
+    public void testDestroyFactoryDoesNotUseThreadLocalForManagedResources() throws InterruptedException {
         Recycler<TestResource> recycler = Recycler.create(
             TestResource::new,
             TestResource::reset,
@@ -275,25 +276,26 @@ public class RecyclerImplTest {
         );
         AtomicReference<TestResource> first = new AtomicReference<>();
         AtomicReference<TestResource> second = new AtomicReference<>();
-        AtomicReference<Boolean> complete = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(1);
 
         Schedulers
             .parallel()
             .schedule(() -> {
-                recycler.doWith(resource -> {
-                    first.set(resource);
-                    return resource.toString();
-                });
-                recycler.doWith(resource -> {
-                    second.set(resource);
-                    return resource.toString();
-                });
-                complete.set(Boolean.TRUE);
+                try {
+                    recycler.doWith(resource -> {
+                        first.set(resource);
+                        return resource.toString();
+                    });
+                    recycler.doWith(resource -> {
+                        second.set(resource);
+                        return resource.toString();
+                    });
+                } finally {
+                    latch.countDown();
+                }
             });
 
-        while (complete.get() == null) {
-            Thread.yield();
-        }
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         assertSame(first.get(), second.get());
         recycler.close();

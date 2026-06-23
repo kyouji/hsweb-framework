@@ -161,6 +161,7 @@ public interface Recycler<T> extends AutoCloseable {
      * <p>已借出的对象不在此方法内强制回收；它们后续调用 {@link Recyclable#recycle()} 时会被销毁而不是重新入池。
      */
     @Override
-    void close();
+    default void close() {
+    }
 
 }
