@@ -1,12 +1,14 @@
 package org.hswebframework.web.crud.query;
 
+import org.hswebframework.ezorm.core.param.Sort;
+import org.hswebframework.ezorm.core.param.Term;
 import org.hswebframework.ezorm.rdb.executor.SqlRequest;
 import org.hswebframework.ezorm.rdb.executor.wrapper.ResultWrappers;
 import org.hswebframework.ezorm.rdb.operator.DatabaseOperator;
-import org.hswebframework.ezorm.core.param.Sort;
 import org.hswebframework.web.api.crud.entity.QueryParamEntity;
 import org.hswebframework.web.crud.TestApplication;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import reactor.test.StepVerifier;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -23,6 +26,17 @@ import static org.junit.jupiter.api.Assertions.*;
 public class QueryAnalyzerImplTest {
     @Autowired
     private DatabaseOperator database;
+
+    @Before
+    public void clearTestData() {
+        database
+            .sql()
+            .reactive()
+            .update("delete from s_test")
+            .then()
+            .as(StepVerifier::create)
+            .verifyComplete();
+    }
 
     /**
      * 执行SQL并验证是否有错误
@@ -762,6 +776,15 @@ public class QueryAnalyzerImplTest {
 
     @Test
     public void testMultipleCTE() {
+        database
+            .getMetadata()
+            .getCurrentSchema()
+            .getTableOrView("s_test", false)
+            .orElseThrow()
+            .getColumn("name")
+            .orElseThrow()
+            .getFullName();
+
         QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
             database,
             "WITH " +
@@ -779,6 +802,7 @@ public class QueryAnalyzerImplTest {
         assertNotNull(request.getSql(), "SQL should be generated");
         assertNotNull(request.getParameters(), "Parameters should be set");
         assertTrue(request.getSql().contains("), cte2 AS"), "multiple CTEs should be separated by comma");
+        assertTrue(request.getSql().contains("cte1.\"NAME\""), "filter column should use current CTE alias");
         executeAndVerify(request);
     }
 
@@ -1127,5 +1151,70 @@ public class QueryAnalyzerImplTest {
         assertTrue(sql.contains("asc"));
 
         executeAndVerify(request);
+    }
+
+    @Test
+    public void testCamelCaseFilterColumnFallback() {
+        QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
+            database,
+            "select * from (select t.name as alarm_time from s_test t) a");
+
+        SqlRequest request = analyzer.refactor(
+            QueryParamEntity
+                .newQuery()
+                .and("alarmTime", "eq", "test")
+                .getParam());
+
+        assertTrue(analyzer.findColumn("alarmTime").isPresent());
+        assertTrue(request.getSql().contains("alarm_time"));
+        assertArrayEquals(new Object[]{"test"}, request.getParameters());
+        executeAndVerify(request);
+    }
+
+    @Test
+    public void testQualifiedCamelCaseNestedFilterColumnFallback() {
+        QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
+            database,
+            "select * from (select t.name as alarm_time from s_test t) a");
+        Term nested = new Term()
+            .nest()
+            .and("a.alarmTime", "eq", "test")
+            .clone();
+        QueryParamEntity param = QueryParamEntity.of();
+        param.setTerms(List.of(nested));
+
+        SqlRequest request = analyzer.refactor(param);
+
+        assertTrue(request.getSql().contains("alarm_time"));
+        assertArrayEquals(new Object[]{"test"}, request.getParameters());
+        executeAndVerify(request);
+    }
+
+    @Test
+    public void testExactFilterAliasTakesPriorityOverSnakeCaseFallback() {
+        QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
+            database,
+            "select * from (select t.name as alarm_time, t.age as alarmTime from s_test t) a");
+
+        QueryAnalyzer.Column column = analyzer.findColumn("alarmTime").orElseThrow();
+
+        assertEquals("alarmTime", column.getAlias());
+    }
+
+    @Test
+    public void testUnknownCamelCaseFilterColumnIsRejected() {
+        QueryAnalyzerImpl analyzer = new QueryAnalyzerImpl(
+            database,
+            "select * from (select t.name as alarm_time from s_test t) a");
+        QueryParamEntity param = QueryParamEntity
+            .newQuery()
+            .and("unknownAlarmTime", "eq", "test")
+            .getParam();
+
+        IllegalArgumentException error = assertThrows(
+            IllegalArgumentException.class,
+            () -> analyzer.refactor(param));
+
+        assertEquals("undefined column [unknownAlarmTime]", error.getMessage());
     }
 }
