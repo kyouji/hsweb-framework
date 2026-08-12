@@ -69,9 +69,11 @@ public final class ReactiveAuthenticationHolder {
             if (Boolean.TRUE.equals(ctx.getOrDefault(IGNORE_AUTH_KEY, false))) {
                 return Mono.empty();
             }
-            return Mono
-                .justOrEmpty(ctx.<Authentication>getOrEmpty(Authentication.class))
-                .switchIfEmpty(get(ReactiveAuthenticationSupplier::get));
+            Authentication authentication = ctx.getOrDefault(Authentication.class, null);
+            if (authentication != null) {
+                return Mono.just(authentication);
+            }
+            return get(ReactiveAuthenticationSupplier::get);
         });
     }
 
